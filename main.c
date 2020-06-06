@@ -3,7 +3,10 @@
 #include <stdlib.h>
 
 #define STB_IMAGE_IMPLEMENTATION
+#define STBI_NO_FAILURE_STRINGS
+#define STBI_ASSERT(x)
 #include "stb/stb_image.h"
+
 #include "rgb_to_ycc.h"
 
 int main(int argc, char **argv) {
