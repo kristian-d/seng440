@@ -13,6 +13,7 @@ void print_image_hex(uint8_t *img, int width, int height) {
   }
 }
 
+// note that the image is has width * 3 bytes per row for RGB
 uint8_t *rgb_to_ycc(uint8_t *img, int width, int height) {
   print_image_hex(img, width, height);
   return NULL;
