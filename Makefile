@@ -1,10 +1,10 @@
 main: main.s rgb_to_ycc.s
 	/opt/arm/4.3.2/bin/arm-linux-gcc main.s rgb_to_ycc.s -lm -o main -Wall
 
-main.asm:
+main.s:
 	/opt/arm/4.3.2/bin/arm-linux-gcc -S main.c -o main.s
 
-rgb_to_ycc.asm:
+rgb_to_ycc.s:
 	/opt/arm/4.3.2/bin/arm-linux-gcc -S rgb_to_ycc.c -o rgb_to_ycc.s
 
 main-gcc:
