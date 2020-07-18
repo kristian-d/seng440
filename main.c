@@ -22,7 +22,7 @@ int main(int argc, char **argv) {
   int width, height, bpp;
 
   // 3 is the number of channels we want, bpp is the actual number of channels contained in the image (bytes per pixel)
-  uint8_t* rgb_img = stbi_load(filename, &width, &height, &bpp, 3);
+  uint8_t *rgb_img = stbi_load(filename, &width, &height, &bpp, 3);
   if (rgb_img == NULL) {
     printf("The image failed to load");
     exit(1);
@@ -33,9 +33,14 @@ int main(int argc, char **argv) {
     exit(1);
   }
 
-  uint8_t* ycc_img = rgb_to_ycc(rgb_img, width, height);
-
+  ycc_image_t *ycc_image = rgb_to_ycc(rgb_img, width, height);
+  uint8_t *rgb_after = ycc_to_rgb(ycc_image);
+  rgb_image_compare(rgb_img, rgb_after, width, height, 0);
+  free(rgb_after);
+  printf("Completed RGB->YCC conversion\n");
   stbi_image_free(rgb_img);
-  printf("Freed memory allocated for image\n");
+  printf("Freed memory allocated for RGB image\n");
+  ycc_image_free(ycc_image);
+  printf("Freed memory allocated for YCC image\n");
   return 0;
 }
