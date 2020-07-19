@@ -32,11 +32,12 @@ ycc_image_t *rgb_to_ycc(uint8_t *img, int width, int height) {
   // ... | o | o | o | o | o | o | ...     <- second inner loop ...
   int img_bytes = height*width*3;
   int physical_width = width*3; // due to each pixel being 3 bytes (R, G, B)
-  int y_index = 0, cb_index = 0, cr_index = 0;
+  int limit;
+  int y_index = 0, c_index = 0;
   uint8_t r, g, b;
-  for (int row_start_index = 0; row_start_index < img_bytes; row_start_index += physical_width) { // RGB -> YCC
+  for (int pixel_index = 0; pixel_index < img_bytes;) { // RGB -> YCC
     // converts RGB -> YCC for row above
-    for (int pixel_index = row_start_index; pixel_index < row_start_index + physical_width; pixel_index += 3) {
+    for (limit = pixel_index + physical_width; pixel_index < limit; pixel_index += 3) {
       // calculate Y, Cb, and Cr values for first pixel
       r = img[pixel_index];
       g = img[pixel_index + 1];
@@ -55,13 +56,13 @@ ycc_image_t *rgb_to_ycc(uint8_t *img, int width, int height) {
       // we can allow for a 23-bit representation; with 23-bit representation, scale factor is 2^24, leaving 8 bits for each RGB multiplication, 1 bit for sign, and none for addition (buffer for addition not needed, as seen below)
       // range of values sum in brackets can reach is [-633172140 - 1244953350 = -1878125490, 0 + 0 + 7365198 + 8388608 = 15753806], both of which can be represented by 32 bits, therefore no bits are needed as a buffer for addition
       // the sum in brackets is immediately scaled down to an 8-bit value so it can be packaged into a uint8_t
-      cb[cb_index++] = 128 + ((-2483028*r + -4882170*g + 7365198*b + (1 << 23)) >> 24); // cb can be written to consecutively, so ++ is ok
+      cb[c_index] = 128 + ((-2483028*r + -4882170*g + 7365198*b + (1 << 23)) >> 24);
 
       // original coefficients are 0.439, -0.368, -0.071 which can be represented with [-2^-1 = -0.5, 2^-1 = 0.5]
       // we can allow for a 23-bit representation; with 23-bit representation, scale factor is 2^24, leaving 8 bits for each RGB multiplication, 1 bit for sign, and none for addition (buffer for addition not needed, as seen below)
       // range of values sum in brackets can reach is [0 - 1574373825 - 303751496 = -1878125321, 1878125490 - 0 - 0 + 8388608 = 1886514098], both of which can be represented by 32 bits, therefore no bits are needed as a buffer for addition
       // the sum in brackets is immediately scaled down to an 8-bit value so it can be packaged into a uint8_t
-      cr[cr_index++] = 128 + ((7365198*r + -6174015*g + -1191182*b + (1 << 23)) >> 24); // cr can be written to consecutively, so ++ is ok
+      cr[c_index++] = 128 + ((7365198*r + -6174015*g + -1191182*b + (1 << 23)) >> 24); // cb and cr can be written to consecutively, so ++ is ok
 
       // calculate Y value for second pixel
       pixel_index += 3;
@@ -73,10 +74,8 @@ ycc_image_t *rgb_to_ycc(uint8_t *img, int width, int height) {
       y[y_index++] = 16 + ((4311744*img[pixel_index] + 8455716*img[pixel_index + 1] + 1644167*img[pixel_index + 2] + (1 << 23)) >> 24); // y can be written to consecutively, so ++ is ok
     }
 
-    row_start_index += physical_width;
-
     // converts RGB -> Y for row below
-    for (int pixel_index = row_start_index; pixel_index < row_start_index + physical_width; pixel_index += 3) {
+    for (limit = pixel_index + physical_width; pixel_index < limit; pixel_index += 3) {
       // calculate Y value for pixel
 
       // original coefficients are 0.257, 0.504, 0.098 which can be represented with [-2^0 = -1, 2^0 = 1]
