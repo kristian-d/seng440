@@ -9,7 +9,7 @@
 	.eabi_attribute 30, 6
 	.eabi_attribute 34, 1
 	.eabi_attribute 18, 4
-	.file	"rgb_to_ycc.c"
+	.file	"rgb_to_ycc_neon.c"
 	.text
 	.align	2
 	.global	rgb_to_ycc
