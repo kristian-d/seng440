@@ -2,8 +2,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "rgb_to_ycc.h"
+#include "arm_neon.h"
 
-ycc_image_t *rgb_to_ycc(uint8_t *img, int width, int height) {
+ycc_image_t *rgb_to_ycc(uint8_t *img, int width, int height) { 
   // set up YCC image space and metadata
   uint8_t *y  = (uint8_t *)malloc(sizeof(uint8_t)*height*width);   // Y values are calculated 1:1
   uint8_t *cb = (uint8_t *)malloc(sizeof(uint8_t)*height*width/4); // Cb values are calculated downsampled 1:4
@@ -19,6 +20,66 @@ ycc_image_t *rgb_to_ycc(uint8_t *img, int width, int height) {
   ycc_image->cr_bytes = height*width/4;
   ycc_image->total_bytes = ycc_image->y_bytes + ycc_image->cb_bytes + ycc_image->cr_bytes;
 
+  uint8x16_t r, g, b;
+  int y_index = 0, c_index = 0;
+  int num16x8 = width/3; // Number of 16 8-bit arrays per row
+  int img_index = 0; // Used for loading rbg values into NEON struct.
+  for (int row_index = 0; row_index < height; row_index+=2) {
+    // Interleaved rgb values. Each rgb value has it's own 16x 8-bit array.
+    uint8x16x3_t intlv_rgb; 
+
+    for(int i = 0; i < num16x8; i++) { // Loops over one row.
+      // Load the rgb values from memory.
+      intlv_rgb = vld3q_u8(img+3*16*img_index);
+      img_index++;
+
+      // NEON vectors
+      uint8x16_t y_neon;
+      uint8x8_t cb_neon, cr_neon;
+      int c_neon_index = 0;
+      for(int j = 0; j < 16; j+=2) { // Operates over one vector
+        // Get the r, g, b vectors
+        r = (uint8x16_t)intlv_rgb.val[0];
+        g = (uint8x16_t)intlv_rgb.val[1];
+        b = (uint8x16_t)intlv_rgb.val[2];
+
+        // Perform calculations and store in NEON vector
+        y_neon[j] = 16 + ((4311744*r[j] + 8455716*g[j] + 1644167*b[j] + (1 << 23)) >> 24);
+        cb_neon[c_neon_index] = 128 + ((-2483028*r[j] + -4882170*g[j] + 7365198*b[j] + (1 << 23)) >> 24);
+        cr_neon[c_neon_index++] = 128 + ((7365198*r[j] + -6174015*g[j] + -1191182*b[j] + (1 << 23)) >> 24);
+        
+        y_neon[j+1] = 16 + ((4311744*r[j+1] + 8455716*g[j+1] + 1644167*b[j+1] + (1 << 23)) >> 24);
+      }
+      // Store NEON vectors into memory
+      vst1q_u8((uint8_t *)&y[y_index], y_neon);
+      vst1_u8((uint8_t *)&cb[c_index], cb_neon);
+      vst1_u8((uint8_t *)&cr[c_index], cr_neon);  
+      y_index += 16;
+      c_index += 8;
+    }
+
+    for(int i = 0; i < num16x8; i++) { // Loops over next row.
+      // Load the rgb values from memory.
+      intlv_rgb = vld3q_u8(img+3*16*img_index);
+      img_index++;
+
+      // NEON vectors
+      uint8x16_t y_neon;
+      for(int j = 0; j < 16; j+=2) { // Operates over one vector
+        // Get the r, g, b vectors
+        r = (uint8x16_t)intlv_rgb.val[0];
+        g = (uint8x16_t)intlv_rgb.val[1];
+        b = (uint8x16_t)intlv_rgb.val[2];
+
+        // Perform calculations and store in NEON vector
+        y_neon[j] = 16 + ((4311744*r[j] + 8455716*g[j] + 1644167*b[j] + (1 << 23)) >> 24);
+      }
+      // Store NEON vectors into memory
+      vst1q_u8((uint8_t *)&y[y_index], y_neon);
+      y_index += 16;
+    }
+  }
+
   // Both RGB->YCC conversion and downsampling of Cb and Cr values occurs in this loop.
   // To eliminate the need for conditionals to check if Cb/Cr values should be sampled
   // based on the current row index, there are two inner loops.
@@ -30,6 +91,7 @@ ycc_image_t *rgb_to_ycc(uint8_t *img, int width, int height) {
   // ... | o | o | o | o | o | o | ...     <- second inner loop converts RGB -> Y for this row of pixels
   // ... | x | o | x | o | x | o | ...     <- (next iteration) first inner loop
   // ... | o | o | o | o | o | o | ...     <- second inner loop ...
+  /*
   int img_bytes = height*width*3;
   int physical_width = width*3; // due to each pixel being 3 bytes (R, G, B)
   int limit;
@@ -85,6 +147,7 @@ ycc_image_t *rgb_to_ycc(uint8_t *img, int width, int height) {
       y[y_index++] = 16 + ((4311744*img[pixel_index] + 8455716*img[pixel_index + 1] + 1644167*img[pixel_index + 2] + (1 << 23)) >> 24); // y can be written to consecutively, so ++ is ok    }
     }
   }
+  */
 
   return ycc_image;
 }
