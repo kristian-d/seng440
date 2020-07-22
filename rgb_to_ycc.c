@@ -21,7 +21,7 @@ ycc_image_t *rgb_to_ycc(uint8_t *img, int width, int height) {
   ycc_image->total_bytes = ycc_image->y_bytes + ycc_image->cb_bytes + ycc_image->cr_bytes;
 
   uint8x16_t r, g, b;
-  int y_index = 0, c_index = 0;
+  //int y_index = 0, c_index = 0;
   int num16x8 = width/3; // Number of 16 8-bit arrays per row
   int img_index = 0; // Used for loading rbg values into NEON struct.
   for (int row_index = 0; row_index < height; row_index+=2) {
@@ -29,10 +29,8 @@ ycc_image_t *rgb_to_ycc(uint8_t *img, int width, int height) {
     uint8x16x3_t intlv_rgb; 
 
     for(int i = 0; i < num16x8; i++) { // Loops over one row.
-      printf("01_");
       // Load the rgb values from memory.
       intlv_rgb = vld3q_u8(img+3*16*img_index);
-      img_index++;
 
       // NEON vectors
       uint8x16_t y_neon;
@@ -52,20 +50,20 @@ ycc_image_t *rgb_to_ycc(uint8_t *img, int width, int height) {
         y_neon[j+1] = 16 + ((4311744*r[j+1] + 8455716*g[j+1] + 1644167*b[j+1] + (1 << 23)) >> 24);
       }
       // Store NEON vectors into memory
-      printf("Storing NEON_01 in mem...");
-      vst1q_u8((uint8_t *)&y[y_index], y_neon);
-      vst1_u8((uint8_t *)&cb[c_index], cb_neon);
-      vst1_u8((uint8_t *)&cr[c_index], cr_neon);
-      y_index += 16;
-      c_index += 8;
-      printf("finished!!\n");
+      /* Any vector store operations may be where the seg faults are coming from
+       * For indexing the y, cb, and cr: I've tried using the img_index to note where to write the vector as well as using y_index and c_index.
+       */
+      vst1q_u8((uint8_t *)y+16*img_index, y_neon);
+      vst1_u8((uint8_t *)cb+8*img_index, cb_neon);
+      vst1_u8((uint8_t *)cr+8*img_index, cr_neon);
+      //y_index += 16;
+      //c_index += 8;
+      img_index++;
     }
-    printf("NEXT ROW\n");
+
     for(int i = 0; i < num16x8; i++) { // Loops over next row.
-      printf("02_");
       // Load the rgb values from memory.
       intlv_rgb = vld3q_u8(img+3*16*img_index);
-      img_index++;
 
       // NEON vectors
       uint8x16_t y_neon;
@@ -79,10 +77,9 @@ ycc_image_t *rgb_to_ycc(uint8_t *img, int width, int height) {
         y_neon[j] = 16 + ((4311744*r[j] + 8455716*g[j] + 1644167*b[j] + (1 << 23)) >> 24);
       }
       // Store NEON vectors into memory
-      printf("Storing NEON_02 in mem...");
-      vst1q_u8((uint8_t *)&y[y_index], y_neon);
-      y_index += 16;
-      printf("finished!!\n");
+      vst1q_u8((uint8_t *)y+16*img_index, y_neon);
+      //y_index += 16;
+      img_index++;
     }
   }
 
