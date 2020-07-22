@@ -5,9 +5,9 @@
 
 ycc_image_t *rgb_to_ycc(uint8_t *img, int width, int height) {
   // set up YCC image space and metadata
-  uint8_t *y  = (uint8_t *)malloc(sizeof(uint8_t)*height*width);   // Y values are calculated 1:1
-  uint8_t *cb = (uint8_t *)malloc(sizeof(uint8_t)*height*width/4); // Cb values are calculated downsampled 1:4
-  uint8_t *cr = (uint8_t *)malloc(sizeof(uint8_t)*height*width/4); // Cr values are calculated downsampled 1:4
+  uint8_t *y  = (uint8_t *)malloc(sizeof(uint8_t)*height*width);   // Y values are calculated 4:4:4
+  uint8_t *cb = (uint8_t *)malloc(sizeof(uint8_t)*height*width/4); // Cb values are calculated downsampled 4:2:0
+  uint8_t *cr = (uint8_t *)malloc(sizeof(uint8_t)*height*width/4); // Cr values are calculated downsampled 4:2:0
   ycc_image_t *ycc_image = (ycc_image_t *)malloc(sizeof(ycc_image_t));
   ycc_image->y  = y;
   ycc_image->cb = cb;
@@ -82,7 +82,7 @@ ycc_image_t *rgb_to_ycc(uint8_t *img, int width, int height) {
       // we can allow for a 24-bit representation; with 24-bit representation, scale factor is 2^24, leaving 8 bits for each RGB multiplication, none for sign (none needed), and none for addition (buffer for addition not needed, as seen below)
       // range of values the sum in brackets can reach is [0 + 0 + 0 = 0, 1099494720 + 2156207580 + 419262585 + 8388608 = 3683353887], both of which can be represented by 32 bits, therefore no bits are needed as a buffer for addition
       // the sum in brackets is immediately scaled down to an 8-bit value so it can be packaged into a uint8_t
-      y[y_index++] = 16 + ((4311744*img[pixel_index] + 8455716*img[pixel_index + 1] + 1644167*img[pixel_index + 2] + (1 << 23)) >> 24); // y can be written to consecutively, so ++ is ok    }
+      y[y_index++] = 16 + ((4311744*img[pixel_index] + 8455716*img[pixel_index + 1] + 1644167*img[pixel_index + 2] + (1 << 23)) >> 24); // y can be written to consecutively, so ++ is ok
     }
   }
 
