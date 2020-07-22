@@ -20,68 +20,89 @@ ycc_image_t *rgb_to_ycc(uint8_t *img, int width, int height) {
   ycc_image->cr_bytes = height*width/4;
   ycc_image->total_bytes = ycc_image->y_bytes + ycc_image->cb_bytes + ycc_image->cr_bytes;
 
+  // CSC Coefficents - 8-bits each
+  // NOTE: some of these should actually be not unsigned.
+  uint8x8_t y_rcoeff = vdup_n_u8();
+  uint8x8_t y_gcoeff = vdup_n_u8();
+  uint8x8_t y_bcoeff = vdup_n_u8();
+  uint8x8_t cr_rcoeff = vdup_n_u8();
+  uint8x8_t cr_gcoeff = vdup_n_u8();
+  uint8x8_t cr_bcoeff = vdup_n_u8();
+  uint8x8_t cb_rcoeff = vdup_n_u8();
+  uint8x8_t cb_gcoeff = vdup_n_u8();
+  uint8x8_t cb_bcoeff = vdup_n_u8();
+
   uint8x16_t r, g, b;
-  //int y_index = 0, c_index = 0;
+  uint8x16x3_t intlv_rgb;
   int num16x8 = width/3; // Number of 16 8-bit arrays per row
   int img_index = 0; // Used for loading rbg values into NEON struct.
   for (int row_index = 0; row_index < height; row_index+=2) {
-    // Interleaved rgb values. Each rgb value has it's own 16x 8-bit array.
-    uint8x16x3_t intlv_rgb; 
-
     for(int i = 0; i < num16x8; i++) { // Loops over one row.
       // Load the rgb values from memory.
       intlv_rgb = vld3q_u8(img+3*16*img_index);
+      img_index++;
 
-      // NEON vectors
-      uint8x16_t y_neon;
-      uint8x8_t cb_neon, cr_neon;
-      int c_neon_index = 0;
-      for(int j = 0; j < 16; j+=2) { // Operates over one vector
-        // Get the r, g, b vectors
-        r = (uint8x16_t)intlv_rgb.val[0];
-        g = (uint8x16_t)intlv_rgb.val[1];
-        b = (uint8x16_t)intlv_rgb.val[2];
+      // Temp vectors for y, cr, cb
+      uint16x8_t y_acc
+      uint16x8_t cr_acc, cb_acc; // maybe uint16x4 depending on how we do downsampling.
+ 
+      // Calculations - need to still add 16, 128, 128
+      // NOTE: This is not doing any downsampling at the moment.
+      //       One method is to do the full calculations and then discard every second element.
+      //       Otherwise we may be able to split intvl_rgb.val[1 or 2] into two vectors and then only do operations on the second vector?
+      y_acc = vmull_u8(intvl_rgb.val[0], y_rcoeff);
+      y_acc = vmlal_u8(y_acc, intvl_rgb.val[1], y_gcoeff);
+      y_acc = vmlal_u8(y_acc, intvl_rgb.val[2], y_bcoeff);
+      cr_acc = vmull_u8(intvl_rgb.val[0], cr_rcoeff);
+      cr_acc = vmlal_u8(cr_acc, intvl_rgb.val[1], cr_gcoeff);
+      cr_acc = vmlal_u8(cr_acc, intvl_rgb.val[2], cr_bcoeff);
+      cb_acc = vmull_u8(intvl_rgb.val[0], cb_rcoeff);
+      cb_acc = vmlal_u8(cb_acc, intvl_rgb.val[1], cb_gcoeff);
+      cb_acc = vmlal_u8(cb_acc, intvl_rgb.val[2], cb_bcoeff);
 
-        // Perform calculations and store in NEON vector
-        y_neon[j] = 16 + ((4311744*r[j] + 8455716*g[j] + 1644167*b[j] + (1 << 23)) >> 24);
-        cb_neon[c_neon_index] = 128 + ((-2483028*r[j] + -4882170*g[j] + 7365198*b[j] + (1 << 23)) >> 24);
-        cr_neon[c_neon_index++] = 128 + ((7365198*r[j] + -6174015*g[j] + -1191182*b[j] + (1 << 23)) >> 24);
+      // Shift 16-bit vectors to 8-bits
+      // vshrn_n_u16()
+
+
+      // Store in memory
+      // either vst1_u8 or vst1q_u8
+
+      /* OLD CALCULATIONS
+      y_neon[j] = 16 + ((4311744*r[j] + 8455716*g[j] + 1644167*b[j] + (1 << 23)) >> 24);
+      cb_neon[c_neon_index] = 128 + ((-2483028*r[j] + -4882170*g[j] + 7365198*b[j] + (1 << 23)) >> 24);
+      cr_neon[c_neon_index++] = 128 + ((7365198*r[j] + -6174015*g[j] + -1191182*b[j] + (1 << 23)) >> 24);
         
-        y_neon[j+1] = 16 + ((4311744*r[j+1] + 8455716*g[j+1] + 1644167*b[j+1] + (1 << 23)) >> 24);
-      }
+      y_neon[j+1] = 16 + ((4311744*r[j+1] + 8455716*g[j+1] + 1644167*b[j+1] + (1 << 23)) >> 24); */
+  
       // Store NEON vectors into memory
-      /* Any vector store operations may be where the seg faults are coming from
-       * For indexing the y, cb, and cr: I've tried using the img_index to note where to write the vector as well as using y_index and c_index.
-       */
+      /* OLD STORE CODE
       vst1q_u8((uint8_t *)y+16*img_index, y_neon);
       vst1_u8((uint8_t *)cb+8*img_index, cb_neon);
-      vst1_u8((uint8_t *)cr+8*img_index, cr_neon);
-      //y_index += 16;
-      //c_index += 8;
-      img_index++;
+      vst1_u8((uint8_t *)cr+8*img_index, cr_neon); */
     }
 
     for(int i = 0; i < num16x8; i++) { // Loops over next row.
       // Load the rgb values from memory.
       intlv_rgb = vld3q_u8(img+3*16*img_index);
-
-      // NEON vectors
-      uint8x16_t y_neon;
-      for(int j = 0; j < 16; j+=2) { // Operates over one vector
-        // Get the r, g, b vectors
-        r = (uint8x16_t)intlv_rgb.val[0];
-        g = (uint8x16_t)intlv_rgb.val[1];
-        b = (uint8x16_t)intlv_rgb.val[2];
-
-        // Perform calculations and store in NEON vector
-        y_neon[j] = 16 + ((4311744*r[j] + 8455716*g[j] + 1644167*b[j] + (1 << 23)) >> 24);
-      }
-      // Store NEON vectors into memory
-      vst1q_u8((uint8_t *)y+16*img_index, y_neon);
-      //y_index += 16;
       img_index++;
+
+      // Temp vectors for y, cr, cb
+      uint16x8_t y_acc
+   
+      // Calcuations - still need to add 16
+      y_acc = vmull_u8(intvl_rgb.val[0], y_rcoeff);
+      y_acc = vmlal_u8(y_acc, intvl_rgb.val[1], y_gcoeff);
+      y_acc = vmlal_u8(y_acc, intvl_rgb.val[2], y_bcoeff);
+      
+      // Shift 16-bit vectors to 8-bits
+      // vshrn_n_u16()
+
+      // Store in memory
+      // either vst1_u8 or vst1q_u8
     }
   }
+
+  return ycc_image;
 
   // Both RGB->YCC conversion and downsampling of Cb and Cr values occurs in this loop.
   // To eliminate the need for conditionals to check if Cb/Cr values should be sampled
@@ -151,6 +172,4 @@ ycc_image_t *rgb_to_ycc(uint8_t *img, int width, int height) {
     }
   }
   */
-
-  return ycc_image;
 }
