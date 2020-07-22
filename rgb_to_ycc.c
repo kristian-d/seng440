@@ -29,6 +29,7 @@ ycc_image_t *rgb_to_ycc(uint8_t *img, int width, int height) {
     uint8x16x3_t intlv_rgb; 
 
     for(int i = 0; i < num16x8; i++) { // Loops over one row.
+      printf("01_");
       // Load the rgb values from memory.
       intlv_rgb = vld3q_u8(img+3*16*img_index);
       img_index++;
@@ -51,14 +52,17 @@ ycc_image_t *rgb_to_ycc(uint8_t *img, int width, int height) {
         y_neon[j+1] = 16 + ((4311744*r[j+1] + 8455716*g[j+1] + 1644167*b[j+1] + (1 << 23)) >> 24);
       }
       // Store NEON vectors into memory
+      printf("Storing NEON_01 in mem...");
       vst1q_u8((uint8_t *)&y[y_index], y_neon);
       vst1_u8((uint8_t *)&cb[c_index], cb_neon);
-      vst1_u8((uint8_t *)&cr[c_index], cr_neon);  
+      vst1_u8((uint8_t *)&cr[c_index], cr_neon);
       y_index += 16;
       c_index += 8;
+      printf("finished!!\n");
     }
-
+    printf("NEXT ROW\n");
     for(int i = 0; i < num16x8; i++) { // Loops over next row.
+      printf("02_");
       // Load the rgb values from memory.
       intlv_rgb = vld3q_u8(img+3*16*img_index);
       img_index++;
@@ -75,8 +79,10 @@ ycc_image_t *rgb_to_ycc(uint8_t *img, int width, int height) {
         y_neon[j] = 16 + ((4311744*r[j] + 8455716*g[j] + 1644167*b[j] + (1 << 23)) >> 24);
       }
       // Store NEON vectors into memory
+      printf("Storing NEON_02 in mem...");
       vst1q_u8((uint8_t *)&y[y_index], y_neon);
       y_index += 16;
+      printf("finished!!\n");
     }
   }
 
