@@ -47,7 +47,7 @@ ycc_image_t *rgb_to_ycc(uint8_t *img, int width, int height) {
       // load the rgb values from memory
       intlv_rgb = vld3_u8(img + pixel_index);
 
-      // temporary vector for y and c values
+      // temporary vector for y and c values; initialize with 2^7 to handle simple rounding for later right bitshift
       y_acc = vmovq_n_u16(128);
       c_acc = vmovq_n_s16(128);
 
