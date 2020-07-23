@@ -24,9 +24,12 @@ ycc_image_t *rgb_to_ycc(uint8_t *img, int width, int height) {
   uint8x8_t y_rcoeff = vdup_n_u8(66); // 0.257 x 2^8 = 65.792
   uint8x8_t y_gcoeff = vdup_n_u8(129); // 0.504 x 2^8 = 129.024
   uint8x8_t y_bcoeff = vdup_n_u8(25); // 0.098 x 2^8 = 25.088
-  int8x8_t c_rcoeff = vreinterpret_s8_s16(vdup_n_s16(28890)); // LOW 8: -0.148 x 2^8 = -37.888, HIGH 8: 0.439 x 2^8 = 112.384
-  int8x8_t c_gcoeff = vreinterpret_s8_s16(vdup_n_s16(-23882)); // LOW 8: -0.291 x 2^8 = -74.496, HIGH 8: -0.368 x 2^8 = -94.208
-  int8x8_t c_bcoeff = vreinterpret_s8_s16(vdup_n_s16(-4496)); // LOW 8: 0.439 x 2^8 = 112.384, HIGH 8: -0.071 x 2^8 = -18.176
+  uint8x8_t c_rcoeff = vreinterpret_u8_u16(vdup_n_u16(28710)); // LOW 8: -0.148 x 2^8 = -37.888, HIGH 8: 0.439 x 2^8 = 112.384
+  uint8x8_t c_gcoeff = vreinterpret_u8_u16(vdup_n_u16(24138)); // LOW 8: -0.291 x 2^8 = -74.496, HIGH 8: -0.368 x 2^8 = -94.208
+  uint8x8_t c_bcoeff = vreinterpret_u8_u16(vdup_n_u16(4720));  // LOW 8: 0.439 x 2^8 = 112.384, HIGH 8: -0.071 x 2^8 = -18.176
+  int16x8_t c_rcoeffsign = vreinterpret_s16_s32(vmovq_n_s32(131071));
+  int16x8_t c_gcoeffsign = vmovq_n_s16(-1);
+  int16x8_t c_bcoeffsign = vreinterpret_s16_s32(vmovq_n_s32(-65535));
 
   uint8x8_t y_scalar = vdup_n_u8(16);
   int8x8_t c_scalar = vdup_n_s8(128);
@@ -59,9 +62,10 @@ ycc_image_t *rgb_to_ycc(uint8_t *img, int width, int height) {
       intlv_rgb.val[2] = vsri_n_u8(intlv_rgb.val[2], intlv_rgb.val[2], 8);
 
       // vector multiplication and accumulation for cb and cr
-      c_acc = vmlal_s8(c_acc, intlv_rgb.val[0], c_rcoeff);
-      c_acc = vmlal_s8(c_acc, intlv_rgb.val[1], c_gcoeff);
-      c_acc = vmlal_s8(c_acc, intlv_rgb.val[2], c_bcoeff);
+
+      c_acc = vmlaq_u16(c_acc, vreinterpret_s8_u8(vmull_u8(intlv_rgb.val[0], c_rcoeff)), c_rcoeffsign));
+      c_acc = vmlaq_u16(c_acc, vreinterpret_s8_u8(vmull_u8(intlv_rgb.val[1], c_gcoeff)), c_gcoeffsign));
+      c_acc = vmlaq_u16(c_acc, vreinterpret_s8_u8(vmull_u8(intlv_rgb.val[2], c_bcoeff)), c_bcoeffsign));
 
       // shift all eight 16-bit values right 8 bits and narrow vector to obtain eight 8-bit values, then add scalar
       y_final = vadd_u8(vshrn_n_u16(y_acc, 8), y_scalar);
