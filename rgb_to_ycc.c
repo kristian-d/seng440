@@ -20,91 +20,82 @@ ycc_image_t *rgb_to_ycc(uint8_t *img, int width, int height) {
   ycc_image->cr_bytes = height*width/4;
   ycc_image->total_bytes = ycc_image->y_bytes + ycc_image->cb_bytes + ycc_image->cr_bytes;
 
-  // CSC Coefficents - 8-bits each
-  // NOTE: some of these should actually be not unsigned.
+  // coefficents - 8-bits each
   uint8x8_t y_rcoeff = vdup_n_u8(66); // 0.257 x 2^8 = 65.792
   uint8x8_t y_gcoeff = vdup_n_u8(129); // 0.504 x 2^8 = 129.024
   uint8x8_t y_bcoeff = vdup_n_u8(25); // 0.098 x 2^8 = 25.088
-  int8x8_t cb_rcoeff = vdup_n_s8(-38); // -0.148 x 2^8 = -37.888
-  int8x8_t cb_gcoeff = vdup_n_s8(-74); // -0.291 x 2^8 = -74.496
-  int8x8_t cb_bcoeff = vdup_n_s8(112); // 0.439 x 2^8 = 112.384
-  int8x8_t cr_rcoeff = vdup_n_s8(112); // 0.439 x 2^8 = 112.384
-  int8x8_t cr_gcoeff = vdup_n_s8(-94); // -0.368 x 2^8 = -94.208
-  int8x8_t cr_bcoeff = vdup_n_s8(-18); // -0.071 x 2^8 = -18.176
+  int8x8_t c_rcoeff = vreinterpret_s16_s8(vdup_n_s16(28890)); // LOW 8: -0.148 x 2^8 = -37.888, HIGH 8: 0.439 x 2^8 = 112.384
+  int8x8_t c_gcoeff = vreinterpret_s16_s8(vdup_n_s16(-23882)); // LOW 8: -0.291 x 2^8 = -74.496, HIGH 8: -0.368 x 2^8 = -94.208
+  int8x8_t c_bcoeff = vreinterpret_s16_s8(vdup_n_s16(-4496)); // LOW 8: 0.439 x 2^8 = 112.384, HIGH 8: -0.071 x 2^8 = -18.176
 
-  uint8x8_t r, g, b;
+  uint8x8_t y_scalar = vdup_n_u8(16);
+  int8x8_t c_scalar = vdup_n_s8(128);
+
+  int y_index = 0, c_index = 0;
+  int physical_width = width*3;
+  int img_bytes = height*physical_width;
+  int limit;
+  uint16x8_t y_acc;
+  int16x8_t c_acc;
+  uint8x8_t y_final, c_final;
   uint8x8x3_t intlv_rgb;
-  int num16x8 = width/3; // Number of 16 8-bit arrays per row
-  int img_index = 0; // Used for loading rbg values into NEON struct.
-  for (int row_index = 0; row_index < height; row_index+=2) {
-    for(int i = 0; i < num16x8; i++) { // Loops over one row.
-      // Load the rgb values from memory.
-      intlv_rgb = vld3_u8(img+3*8*img_index);
-      img_index++;
+  for (int pixel_index = 0; pixel_index < img_bytes;) {
+    for(limit = pixel_index + physical_width; pixel_index < limit; pixel_index += 24) { // Loops over one row.
+      // load the rgb values from memory
+      intlv_rgb = vld3_u8(img + pixel_index);
 
-      // Temp vectors for y, cr, cb
-      // maybe uint16x4 depending on how we do downsampling.
-      uint16x8_t y_acc = vmovq_n_u16(128);
-      int16x8_t cb_acc = vmovq_n_s16(128), cr_acc = vmovq_n_s16(128);
+      // temporary vector for y and c values
+      y_acc = vmovq_n_u16(128);
+      c_acc = vmovq_n_s16(128);
 
-      // Calculations - need to still add 16, 128, 128
-      // NOTE: This is not doing any downsampling at the moment.
-      //       One method is to do the full calculations and then discard every second element.
-      //       Otherwise we may be able to split intvl_rgb.val[1 or 2] into two vectors and then only do operations on the second vector?
+      // vector multiplication and accumulation for y
       y_acc = vmlal_u8(y_acc, intvl_rgb.val[0], y_rcoeff);
       y_acc = vmlal_u8(y_acc, intvl_rgb.val[1], y_gcoeff);
       y_acc = vmlal_u8(y_acc, intvl_rgb.val[2], y_bcoeff);
-      cb_acc = vmlal_s8(cb_acc, intvl_rgb.val[0], cb_rcoeff);
-      cb_acc = vmlal_s8(cb_acc, intvl_rgb.val[1], cb_gcoeff);
-      cb_acc = vmlal_s8(cb_acc, intvl_rgb.val[2], cb_bcoeff);
-      cr_acc = vmlal_s8(cr_acc, intvl_rgb.val[0], cr_rcoeff);
-      cr_acc = vmlal_s8(cr_acc, intvl_rgb.val[1], cr_gcoeff);
-      cr_acc = vmlal_s8(cr_acc, intvl_rgb.val[2], cr_bcoeff);
 
-      // shift all 16-bit values right 8 bits to obtain 8-bit values
-      uint8x8_t y_final = vqshrn_n_u16(y_acc);
-      uint8x8_t cb_final = vreinterpret_s8_u8(vqshrn_n_s16(cb_acc)); // additionally, cast signed integers to unsigned integers
-      uint8x8_t cr_final = vreinterpret_s8_u8(vqshrn_n_s16(cr_acc)); // additionally, cast signed integers to unsigned integers
+      // duplicate every second value
+      intvl_rgb.val[0] = vsri_n_u8(intvl_rgb.val[0], intvl_rgb.val[0], 8);
+      intvl_rgb.val[1] = vsri_n_u8(intvl_rgb.val[1], intvl_rgb.val[1], 8);
+      intvl_rgb.val[2] = vsri_n_u8(intvl_rgb.val[2], intvl_rgb.val[2], 8);
 
-      // Shift 16-bit vectors to 8-bits
-      // vshrn_n_u16()
+      // vector multiplication and accumulation for cb and cr
+      c_acc = vmlal_s8(c_acc, intvl_rgb.val[0], c_rcoeff);
+      c_acc = vmlal_s8(c_acc, intvl_rgb.val[1], c_gcoeff);
+      c_acc = vmlal_s8(c_acc, intvl_rgb.val[2], c_bcoeff);
 
+      // shift all eight 16-bit values right 8 bits and narrow vector to obtain eight 8-bit values, then add scalar
+      y_final = vadd_u8(vshrn_n_u16(y_acc, 8), y_scalar);
+      c_final = vreinterpret_s8_u8(vadd_s8(vshrn_n_s16(c_acc, 8), c_scalar)); // additionally, cast signed integers to unsigned integers
 
-      // Store in memory
-      // either vst1_u8 or vst1q_u8
-
-      /* OLD CALCULATIONS
-      y_neon[j] = 16 + ((4311744*r[j] + 8455716*g[j] + 1644167*b[j] + (1 << 23)) >> 24);
-      cb_neon[c_neon_index] = 128 + ((-2483028*r[j] + -4882170*g[j] + 7365198*b[j] + (1 << 23)) >> 24);
-      cr_neon[c_neon_index++] = 128 + ((7365198*r[j] + -6174015*g[j] + -1191182*b[j] + (1 << 23)) >> 24);
-
-      y_neon[j+1] = 16 + ((4311744*r[j+1] + 8455716*g[j+1] + 1644167*b[j+1] + (1 << 23)) >> 24); */
-
-      // Store NEON vectors into memory
-      /* OLD STORE CODE
-      vst1q_u8((uint8_t *)y+16*img_index, y_neon);
-      vst1_u8((uint8_t *)cb+8*img_index, cb_neon);
-      vst1_u8((uint8_t *)cr+8*img_index, cr_neon); */
+      // store results
+      vst1_u8(y_index += 8, y_final);
+      vst1_lane_u8(cb + c_index,   c_final, 0);
+      vst1_lane_u8(cr + c_index++, c_final, 1);
+      vst1_lane_u8(cb + c_index,   c_final, 2);
+      vst1_lane_u8(cr + c_index++, c_final, 3);
+      vst1_lane_u8(cb + c_index,   c_final, 4);
+      vst1_lane_u8(cr + c_index++, c_final, 5);
+      vst1_lane_u8(cb + c_index,   c_final, 6);
+      vst1_lane_u8(cr + c_index++, c_final, 7);
     }
 
-    for(int i = 0; i < num16x8; i++) { // Loops over next row.
+    for(limit = pixel_index + physical_width; pixel_index < limit; pixel_index += 24) { // Loops over next row.
       // Load the rgb values from memory.
-      intlv_rgb = vld3q_u8(img+3*16*img_index);
-      img_index++;
+      intlv_rgb = vld3q_u8(img + pixel_index);
 
-      // Temp vectors for y, cr, cb
-      uint16x8_t y_acc
+      // temporary vector for y
+      y_acc = vmovq_n_u16(128);
 
-      // Calcuations - still need to add 16
-      y_acc = vmull_u8(intvl_rgb.val[0], y_rcoeff);
+      // vector multiplication and accumulation
+      y_acc = vmlal_u8(y_acc, intvl_rgb.val[0], y_rcoeff);
       y_acc = vmlal_u8(y_acc, intvl_rgb.val[1], y_gcoeff);
       y_acc = vmlal_u8(y_acc, intvl_rgb.val[2], y_bcoeff);
 
-      // Shift 16-bit vectors to 8-bits
-      // vshrn_n_u16()
+      // shift 16-bit value right 8 bits to obtain 8-bit values
+      y_final = vadd_u8(vshrn_n_u16(y_acc), y_scalar);
 
-      // Store in memory
-      // either vst1_u8 or vst1q_u8
+      // store result
+      vst1_u8(y_index += 8, y_final);
     }
   }
 
