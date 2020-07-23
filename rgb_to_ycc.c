@@ -82,7 +82,7 @@ ycc_image_t *rgb_to_ycc(uint8_t *img, int width, int height) {
 
     for(limit = pixel_index + physical_width; pixel_index < limit; pixel_index += 24) { // Loops over next row.
       // Load the rgb values from memory.
-      intlv_rgb = vld3q_u8(img + pixel_index);
+      intlv_rgb = vld3_u8(img + pixel_index);
 
       // temporary vector for y
       y_acc = vmovq_n_u16(128);
@@ -93,7 +93,7 @@ ycc_image_t *rgb_to_ycc(uint8_t *img, int width, int height) {
       y_acc = vmlal_u8(y_acc, intlv_rgb.val[2], y_bcoeff);
 
       // shift 16-bit value right 8 bits to obtain 8-bit values
-      y_final = vadd_u8(vshrn_n_u16(y_acc), y_scalar);
+      y_final = vadd_u8(vshrn_n_u16(y_acc, 8), y_scalar);
 
       // store result
       vst1_u8(y + y_index, y_final);
