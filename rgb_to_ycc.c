@@ -49,26 +49,27 @@ ycc_image_t *rgb_to_ycc(uint8_t *img, int width, int height) {
       c_acc = vmovq_n_s16(128);
 
       // vector multiplication and accumulation for y
-      y_acc = vmlal_u8(y_acc, intvl_rgb.val[0], y_rcoeff);
-      y_acc = vmlal_u8(y_acc, intvl_rgb.val[1], y_gcoeff);
-      y_acc = vmlal_u8(y_acc, intvl_rgb.val[2], y_bcoeff);
+      y_acc = vmlal_u8(y_acc, intlv_rgb.val[0], y_rcoeff);
+      y_acc = vmlal_u8(y_acc, intlv_rgb.val[1], y_gcoeff);
+      y_acc = vmlal_u8(y_acc, intlv_rgb.val[2], y_bcoeff);
 
       // duplicate every second value
-      intvl_rgb.val[0] = vsri_n_u8(intvl_rgb.val[0], intvl_rgb.val[0], 8);
-      intvl_rgb.val[1] = vsri_n_u8(intvl_rgb.val[1], intvl_rgb.val[1], 8);
-      intvl_rgb.val[2] = vsri_n_u8(intvl_rgb.val[2], intvl_rgb.val[2], 8);
+      intlv_rgb.val[0] = vsri_n_u8(intlv_rgb.val[0], intlv_rgb.val[0], 8);
+      intlv_rgb.val[1] = vsri_n_u8(intlv_rgb.val[1], intlv_rgb.val[1], 8);
+      intlv_rgb.val[2] = vsri_n_u8(intlv_rgb.val[2], intlv_rgb.val[2], 8);
 
       // vector multiplication and accumulation for cb and cr
-      c_acc = vmlal_s8(c_acc, intvl_rgb.val[0], c_rcoeff);
-      c_acc = vmlal_s8(c_acc, intvl_rgb.val[1], c_gcoeff);
-      c_acc = vmlal_s8(c_acc, intvl_rgb.val[2], c_bcoeff);
+      c_acc = vmlal_s8(c_acc, intlv_rgb.val[0], c_rcoeff);
+      c_acc = vmlal_s8(c_acc, intlv_rgb.val[1], c_gcoeff);
+      c_acc = vmlal_s8(c_acc, intlv_rgb.val[2], c_bcoeff);
 
       // shift all eight 16-bit values right 8 bits and narrow vector to obtain eight 8-bit values, then add scalar
       y_final = vadd_u8(vshrn_n_u16(y_acc, 8), y_scalar);
       c_final = vreinterpret_s8_u8(vadd_s8(vshrn_n_s16(c_acc, 8), c_scalar)); // additionally, cast signed integers to unsigned integers
 
       // store results
-      vst1_u8(y_index += 8, y_final);
+      vst1_u8(y + y_index, y_final);
+      y_index += 8;
       vst1_lane_u8(cb + c_index,   c_final, 0);
       vst1_lane_u8(cr + c_index++, c_final, 1);
       vst1_lane_u8(cb + c_index,   c_final, 2);
@@ -87,15 +88,16 @@ ycc_image_t *rgb_to_ycc(uint8_t *img, int width, int height) {
       y_acc = vmovq_n_u16(128);
 
       // vector multiplication and accumulation
-      y_acc = vmlal_u8(y_acc, intvl_rgb.val[0], y_rcoeff);
-      y_acc = vmlal_u8(y_acc, intvl_rgb.val[1], y_gcoeff);
-      y_acc = vmlal_u8(y_acc, intvl_rgb.val[2], y_bcoeff);
+      y_acc = vmlal_u8(y_acc, intlv_rgb.val[0], y_rcoeff);
+      y_acc = vmlal_u8(y_acc, intlv_rgb.val[1], y_gcoeff);
+      y_acc = vmlal_u8(y_acc, intlv_rgb.val[2], y_bcoeff);
 
       // shift 16-bit value right 8 bits to obtain 8-bit values
       y_final = vadd_u8(vshrn_n_u16(y_acc), y_scalar);
 
       // store result
-      vst1_u8(y_index += 8, y_final);
+      vst1_u8(y + y_index, y_final);
+      y_index += 8;
     }
   }
 
