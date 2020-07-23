@@ -18,7 +18,7 @@ rgb_to_ycc.arm_neon.s:
 	gcc -mfpu=neon -S rgb_to_ycc_neon.c -o rgb_to_ycc.arm_neon.s
 
 clean:
-	rm ./main
-	rm ./main-neon
-	rm ./rgb_to_ycc.arm.s
-	rm ./rgb_to_ycc.arm_neon.s
+	rm -f ./main
+	rm -f ./main-neon
+	rm -f ./rgb_to_ycc.arm.s
+	rm -f ./rgb_to_ycc.arm_neon.s
