@@ -63,9 +63,9 @@ ycc_image_t *rgb_to_ycc(uint8_t *img, int width, int height) {
 
       // vector multiplication and accumulation for cb and cr
 
-      c_acc = vmlaq_u16(c_acc, vreinterpret_s8_u8(vmull_u8(intlv_rgb.val[0], c_rcoeff)), c_rcoeffsign));
-      c_acc = vmlaq_u16(c_acc, vreinterpret_s8_u8(vmull_u8(intlv_rgb.val[1], c_gcoeff)), c_gcoeffsign));
-      c_acc = vmlaq_u16(c_acc, vreinterpret_s8_u8(vmull_u8(intlv_rgb.val[2], c_bcoeff)), c_bcoeffsign));
+      c_acc = vmlaq_u16(c_acc, vreinterpret_s8_u8(vmull_u8(intlv_rgb.val[0], c_rcoeff)), c_rcoeffsign);
+      c_acc = vmlaq_u16(c_acc, vreinterpret_s8_u8(vmull_u8(intlv_rgb.val[1], c_gcoeff)), c_gcoeffsign);
+      c_acc = vmlaq_u16(c_acc, vreinterpret_s8_u8(vmull_u8(intlv_rgb.val[2], c_bcoeff)), c_bcoeffsign);
 
       // shift all eight 16-bit values right 8 bits and narrow vector to obtain eight 8-bit values, then add scalar
       y_final = vadd_u8(vshrn_n_u16(y_acc, 8), y_scalar);
