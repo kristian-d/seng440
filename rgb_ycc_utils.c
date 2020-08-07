@@ -4,10 +4,13 @@
 #include "rgb_ycc_utils.h"
 
 uint8_t *ycc_to_rgb(ycc_image_t *ycc_image) {
+  printf("before malloc");
   uint8_t *rgb_image = (uint8_t *)malloc(ycc_image->height*ycc_image->width*3*sizeof(uint8_t));
+  printf("after malloc");
   uint8_t y, cb, cr;
   int r, g, b, rgb_pixel_index;
   for (int i = 0; i < ycc_image->height; i++) {
+    printf("row=%d", i);
     for (int j = 0; j < ycc_image->width; j++) {
       rgb_pixel_index = (i*ycc_image->width + j)*3;
       y = ycc_image->y[i*ycc_image->width + j];
