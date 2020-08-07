@@ -34,19 +34,14 @@ ycc_image_t *rgb_to_ycc(uint8_t *img, int width, int height) {
   int physical_width = width*3; // due to each pixel being 3 bytes (R, G, B)
   int limit;
   int y_index = 0, c_index = 0;
-  //uint8_t r, g, b;
   uint32_t rgb; // holds 3 8-bit rgb values
-  uint32_t ycc;
-  //uint8_t *rgb = (uint8_t *)malloc(sizeof(uint8_t)*3);
-  //uint8_t *ycc  = (uint8_t *)malloc(sizeof(uint8_t)*3);
+  uint32_t ycc; // holds 3 8-bit y, cr, cb values
   for (int pixel_index = 0; pixel_index < img_bytes;) { // RGB -> YCC
     // converts RGB -> YCC for row above
     for (limit = pixel_index + physical_width; pixel_index < limit; pixel_index += 3) {
-      // load rgb values for first pixel
-      //rgb[0] = img[pixel_index]; // r
-      //rgb[1] = img[pixel_index + 1];  // g
-      //rgb[2] = img[pixel_index + 2];  // b
+      /* First Pixel */
 
+      // read 3 8-bit rgb values from memory into 32-bits
       rgb = (img[pixel_index] << 24) | (img[pixel_index + 1] << 16) | (img[pixel_index + 2] << 8);
 
       // assembly inlining to custom hardware instruction
@@ -59,13 +54,11 @@ ycc_image_t *rgb_to_ycc(uint8_t *img, int width, int height) {
       y[y_index++] = ycc>>24;
       cb[c_index] = ycc>>16;
       cr[c_index++] = ycc>>8;
-
-      // calculate Y value for second pixel
       pixel_index += 3;
 
-      //rgb[0] = img[pixel_index]; // r
-      //rgb[1] = img[pixel_index + 1];  // g
-      //rgb[2] = img[pixel_index + 2];  // b
+      /* Second Pixel */      
+
+      // read 3 8-bit rgb values from memory into 32-bits
       rgb = (img[pixel_index] << 24) | (img[pixel_index + 1] << 16) | (img[pixel_index + 2] << 8);
 
       // assembly inlining to custom hardware instruction
@@ -82,10 +75,7 @@ ycc_image_t *rgb_to_ycc(uint8_t *img, int width, int height) {
     for (limit = pixel_index + physical_width; pixel_index < limit; pixel_index += 3) {
       // calculate Y value for pixel
 
-      //rgb[0] = img[pixel_index]; // r
-      //rgb[1] = img[pixel_index + 1];  // g
-      //rgb[2] = img[pixel_index + 2];  // b
-
+      // read 3 8-bit rgb values from memory into 32-bits
       rgb = (img[pixel_index] << 24) | (img[pixel_index + 1] << 16) | (img[pixel_index + 2] << 8);
 
       // assembly inlining to custom hardware instruction

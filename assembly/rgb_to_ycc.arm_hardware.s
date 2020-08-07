@@ -143,7 +143,7 @@ rgb_to_ycc:
 	movl	%eax, -40(%rbp)
 	movl	-40(%rbp), %eax
 #APP
-# 53 "rgb_to_ycc_hardware.c" 1
+# 48 "rgb_to_ycc_hardware.c" 1
 	rgb_to_ycc	%eax, %eax
 
 # 0 "" 2
@@ -210,7 +210,7 @@ rgb_to_ycc:
 	movl	%eax, -40(%rbp)
 	movl	-40(%rbp), %eax
 #APP
-# 72 "rgb_to_ycc_hardware.c" 1
+# 65 "rgb_to_ycc_hardware.c" 1
 	rgb_to_ycc	%eax, %eax
 
 # 0 "" 2
@@ -267,7 +267,7 @@ rgb_to_ycc:
 	movl	%eax, -40(%rbp)
 	movl	-40(%rbp), %eax
 #APP
-# 92 "rgb_to_ycc_hardware.c" 1
+# 82 "rgb_to_ycc_hardware.c" 1
 	rgb_to_ycc	%eax, %eax
 
 # 0 "" 2
