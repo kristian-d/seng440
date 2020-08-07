@@ -86,4 +86,5 @@ ycc_image_t *rgb_to_ycc(uint8_t *img, int width, int height) {
       y[y_index++] = 16 + ((4311744*img[pixel_index] + 8455716*img[pixel_index + 1] + 1644167*img[pixel_index + 2] + (1 << 23)) >> 24); // y can be written to consecutively, so ++ is ok
     }
   }
+  return ycc_image;
 }
