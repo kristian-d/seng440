@@ -1,6 +1,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <time.h>
 
 #define STB_IMAGE_IMPLEMENTATION
 #define STBI_NO_FAILURE_STRINGS
@@ -44,8 +45,19 @@ int main(int argc, char **argv) {
     exit(1);
   }
 
-  ycc_image_t *ycc_image = rgb_to_ycc(rgb_img, width, height);
+  struct timespec tstart={0,0}, tend={0,0};
+  ycc_image_t **ycc_image = (ycc_image_t **)malloc(100000*sizeof(ycc_image_t *));
+  clock_gettime(CLOCK_MONOTONIC, &tstart);
+  for (int i = 0; i < 100000; i++)
+    ycc_image[i] = rgb_to_ycc(rgb_img, width, height);
+  clock_gettime(CLOCK_MONOTONIC, &tend);
+  printf("%.5f seconds\n",
+         ((double)tend.tv_sec + 1.0e-9*tend.tv_nsec) -
+         ((double)tstart.tv_sec + 1.0e-9*tstart.tv_nsec));
   printf("Completed RGB->YCC conversion\n");
+  for (int i = 0; i < 100000; i++)
+    free(ycc_image[i]);
+  free(ycc_image);
 
   uint8_t *rgb_img_out = NULL;
   if (outfilename != NULL) {
@@ -53,7 +65,7 @@ int main(int argc, char **argv) {
     printf("Completed YCC->RGB conversion\n");
   }
 
-  ycc_image_free(ycc_image);
+  //ycc_image_free(ycc_image);
   printf("Freed memory allocated for YCC image\n");
   stbi_image_free(rgb_img);
   printf("Freed memory allocated for input RGB image\n");
