@@ -20,27 +20,29 @@ ycc_image_t *rgb_to_ycc(uint8_t *img, int width, int height) {
   ycc_image->cr_bytes = height*width/4;
   ycc_image->total_bytes = ycc_image->y_bytes + ycc_image->cb_bytes + ycc_image->cr_bytes;
 
-  // coefficents - 8-bits each
-  uint8x8_t y_rcoeff = vdup_n_u8(66); // 0.257 x 2^8 = 65.792
-  uint8x8_t y_gcoeff = vdup_n_u8(129); // 0.504 x 2^8 = 129.024
-  uint8x8_t y_bcoeff = vdup_n_u8(25); // 0.098 x 2^8 = 25.088
-  uint8x8_t c_rcoeff = vreinterpret_u8_u16(vdup_n_u16(28710)); // LOW 8: 0.148 x 2^8 = 37.888, HIGH 8: 0.439 x 2^8 = 112.384
-  uint8x8_t c_gcoeff = vreinterpret_u8_u16(vdup_n_u16(24138)); // LOW 8: 0.291 x 2^8 = 74.496, HIGH 8: 0.368 x 2^8 = 94.208
-  uint8x8_t c_bcoeff = vreinterpret_u8_u16(vdup_n_u16(4720));  // LOW 8: 0.439 x 2^8 = 112.384, HIGH 8: 0.071 x 2^8 = 18.176
-  int16x8_t c_rcoeffsign = vreinterpretq_s16_s32(vmovq_n_s32(131071)); // LOW 8: -1, HIGH 8: 1
-  int16x8_t c_gcoeffsign = vmovq_n_s16(-1); // LOW 8: -1, HIGH 8: -1
-  int16x8_t c_bcoeffsign = vreinterpretq_s16_s32(vmovq_n_s32(-65535)); // LOW 8: 1, HIGH 8: -1
+  // note: without "register" keyword, the compiler tends to underuse the 32 ARM NEON registers available to it
 
-  uint8x8_t y_scalar = vdup_n_u8(16);
-  int8x8_t c_scalar = vdup_n_s8(128);
+  // coefficents - 8-bits each
+  register uint8x8_t y_rcoeff = vdup_n_u8(66); // 0.257 x 2^8 = 65.792
+  register uint8x8_t y_gcoeff = vdup_n_u8(129); // 0.504 x 2^8 = 129.024
+  register uint8x8_t y_bcoeff = vdup_n_u8(25); // 0.098 x 2^8 = 25.088
+  register uint8x8_t c_rcoeff = vreinterpret_u8_u16(vdup_n_u16(28710)); // LOW 8: 0.148 x 2^8 = 37.888, HIGH 8: 0.439 x 2^8 = 112.384
+  register uint8x8_t c_gcoeff = vreinterpret_u8_u16(vdup_n_u16(24138)); // LOW 8: 0.291 x 2^8 = 74.496, HIGH 8: 0.368 x 2^8 = 94.208
+  register uint8x8_t c_bcoeff = vreinterpret_u8_u16(vdup_n_u16(4720));  // LOW 8: 0.439 x 2^8 = 112.384, HIGH 8: 0.071 x 2^8 = 18.176
+  register int16x8_t c_rcoeffsign = vreinterpretq_s16_s32(vmovq_n_s32(131071)); // LOW 8: -1, HIGH 8: 1
+  register int16x8_t c_gcoeffsign = vmovq_n_s16(-1); // LOW 8: -1, HIGH 8: -1
+  register int16x8_t c_bcoeffsign = vreinterpretq_s16_s32(vmovq_n_s32(-65535)); // LOW 8: 1, HIGH 8: -1
+
+  register uint8x8_t y_scalar = vdup_n_u8(16);
+  register int8x8_t c_scalar = vdup_n_s8(128);
 
   int y_index = 0, c_index = 0;
   int physical_width = width*3;
   int img_bytes = height*physical_width;
   int limit;
-  uint16x8_t y_acc;
-  int16x8_t c_acc;
-  uint8x8_t y_final, c_final;
+  register uint16x8_t y_acc;
+  register int16x8_t c_acc;
+  register uint8x8_t y_final, c_final;
   uint8x8x3_t intlv_rgb;
   for (int pixel_index = 0; pixel_index < img_bytes;) {
     for(limit = pixel_index + physical_width; pixel_index < limit; pixel_index += 24) { // Loops over one row.
