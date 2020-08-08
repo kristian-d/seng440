@@ -58,7 +58,7 @@ int main(int argc, char **argv) {
   stbi_image_free(rgb_img);
   printf("Freed memory allocated for input RGB image\n");
 
-  if (rgb_image_out != NULL) {
+  if (rgb_img_out != NULL) {
     stbi_write_jpg(outfilename, width, height, bpp, rgb_img_out, 100);
     printf("Output RGB image written to '%s'\n", outfilename);
     free(rgb_img_out);
