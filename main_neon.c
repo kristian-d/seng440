@@ -1,6 +1,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <time.h>
 
 #define STB_IMAGE_IMPLEMENTATION
 #define STBI_NO_FAILURE_STRINGS
@@ -62,7 +63,7 @@ int main(int argc, char **argv) {
 
   uint8_t *rgb_img_out = NULL;
   if (outfilename != NULL) {
-    rgb_img_out = ycc_to_rgb(ycc_image);
+    rgb_img_out = ycc_to_rgb(ycc_image[0]);
     printf("Completed YCC->RGB conversion\n");
   }
 
