@@ -2,7 +2,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "rgb_to_ycc.h"
-#include "arm_neon.h"
 
 ycc_image_t *rgb_to_ycc(uint8_t *img, int width, int height) {
   // set up YCC image space and metadata
