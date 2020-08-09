@@ -334,7 +334,7 @@ rgb_to_ycc:
 	ldr	r3, [fp, #-36]
 	cmp	r2, r3
 	blt	.L7
-	nop
+	ldr	r3, [fp, #-32]
 	mov	r0, r3
 	sub	sp, fp, #4
 	@ sp needed
